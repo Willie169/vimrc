@@ -373,7 +373,7 @@ nmap <silent> <leader>a <Plug>(ale_next_wrap)
 nnoremap <leader>v :.GBrowse!<CR>
 xnoremap <leader>v :'<'>GBrowse!<CR>
 ```
-[copilot.vim](https://github.com/github/copilot.vim) is disabled by default. To enable it by default, add `let g:copilot_enabled = v:true` in `my_configs.vim`. To toggle it on and off, press `<leader>gc`
+[copilot.vim](https://github.com/github/copilot.vim) is disabled by default. Setup with `:Copilot setup`. To enable it by default, add `let g:copilot_enabled = v:true` in `my_configs.vim`. To toggle it on and off, press `<leader>gc`
 ### Spell checking
 Pressing `<leader>ss` will toggle spell checking:
 ```vim
