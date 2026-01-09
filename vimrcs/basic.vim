@@ -178,6 +178,22 @@ set noswapfile
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" => Clipboard
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Let yanks/deletes go to both internal default register and system clipboard
+set clipboard^=unnamed
+set clipboard^=unnamedplus
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" => Mouse
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Enable click to move the cursor, scroll, select, resize splits with ,k for manual toggling
+set mouse=a
+nnoremap <silent> <leader>k :if &mouse ==# 'a' \| set mouse= \| else \| set mouse=a \| endif<CR>
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Text, tab and indent related
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Use spaces instead of tabs
