@@ -129,7 +129,7 @@ augroup PairMapsByFiletype
   autocmd FileType sh,bash,zsh,ps,php,pl,pm,cgi,plx,pod,t call DisablePairMaps()
 augroup END
 
-nnoremap <silent> <leader>u :if get(b:, 'pair_maps_enabled', 0) \| call DisablePairMaps() \| else \| call EnablePairMaps() \| endif<CR>
+nnoremap <leader>u :if get(b:, 'pair_maps_enabled', 0) \| call DisablePairMaps() \| else \| call EnablePairMaps() \| endif<CR>
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => General abbreviations

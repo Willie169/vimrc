@@ -261,7 +261,7 @@ vnoremap $e <esc>`>a`<esc>`<i`<esc>
 
 ### Insert mode mappings
 
-Quickly insert parenthesis/brackets/etc.:
+Quickly insert parenthesis/brackets/etc., disabled by default for Shell, PHP, and Perl and enabled by default for other files, can be toggled on and of by pressing `<leader>u`:
 ```vim
 inoremap $1 ()<esc>i
 inoremap $2 []<esc>i
