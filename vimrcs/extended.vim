@@ -101,13 +101,27 @@ function! EnablePairMaps()
 endfunction
 
 function! DisablePairMaps()
-  iunmap $1
-  iunmap $2
-  iunmap $3
-  iunmap $4
-  iunmap $q
-  iunmap $e
-  let g:pair_maps_enabled = 0
+  if exists('b:pair_maps_enabled') && b:pair_maps_enabled
+    if mapcheck('$1', 'i') !=# ''
+      iunmap $1
+    endif
+    if mapcheck('$2', 'i') !=# ''
+      iunmap $2
+    endif
+    if mapcheck('$3', 'i') !=# ''
+      iunmap $3
+    endif
+    if mapcheck('$4', 'i') !=# ''
+      iunmap $4
+    endif
+    if mapcheck('$q', 'i') !=# ''
+      iunmap $q
+    endif
+    if mapcheck('$e', 'i') !=# ''
+      iunmap $e
+    endif
+    let b:pair_maps_enabled = 0
+  endif
 endfunction
 
 augroup PairMapsByFiletype
@@ -115,7 +129,7 @@ augroup PairMapsByFiletype
   autocmd FileType sh,bash,zsh,ps,php,pl,pm,cgi,plx,pod,t call DisablePairMaps()
 augroup END
 
-nnoremap <silent> <leader>u :if g:pair_maps_enabled | call DisablePairMaps() | else | call EnablePairMaps() | endif<CR>
+nnoremap <silent> <leader>u :if get(b:, 'pair_maps_enabled', 0) \| call DisablePairMaps() \| else \| call EnablePairMaps() \| endif<CR>
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => General abbreviations
