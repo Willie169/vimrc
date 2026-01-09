@@ -57,7 +57,8 @@ command! Wq execute 'w !sudo tee "%" > /dev/null' <bar> edit! <bar> q
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => VIM user interface
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Add lines of relative number to the left
+" Add lines of hybrid number to the left
+set number
 set relativenumber
 
 " Set 7 lines to the cursor - when moving vertically using j/k
