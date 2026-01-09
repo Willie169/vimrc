@@ -200,3 +200,13 @@ xnoremap <leader>v :GBrowse!<CR>
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Default to disabled
 let g:copilot_enabled = v:false
+
+function! ToggleCopilot()
+  if g:copilot_enabled
+    let g:copilot_enabled = v:false
+  else
+    let g:copilot_enabled = v:true
+  endif
+endfunction
+
+nnoremap <leader>gc :call ToggleCopilot()<CR>
