@@ -50,7 +50,8 @@ nmap <leader>w :w!<cr>
 
 " :W sudo saves the file
 " (useful for handling the permission-denied error)
-command! W execute 'w !sudo tee % > /dev/null' <bar> edit!
+command! W execute 'w !sudo tee "%" > /dev/null' <bar> edit!
+command! Wq execute 'w !sudo tee "%" > /dev/null' <bar> edit! <bar> q
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
