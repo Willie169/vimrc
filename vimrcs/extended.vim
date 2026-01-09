@@ -88,7 +88,7 @@ vnoremap $q <esc>`>a'<esc>`<i'<esc>
 vnoremap $e <esc>`>a`<esc>`<i`<esc>
 
 " Map auto complete of (, ", ', [ except for shell, php, and perl with ,u for manual toggling
-let g:pair_maps_enabled = 1
+let b:pair_maps_enabled = 1
 
 function! EnablePairMaps()
   inoremap $1 ()<esc>i
@@ -97,11 +97,11 @@ function! EnablePairMaps()
   inoremap $4 {<esc>o}<esc>O
   inoremap $q ''<esc>i
   inoremap $e ""<esc>i
-  let g:pair_maps_enabled = 1
+  let b:pair_maps_enabled = 1
 endfunction
 
 function! DisablePairMaps()
-  if exists('b:pair_maps_enabled') && b:pair_maps_enabled
+  if b:pair_maps_enabled
     if mapcheck('$1', 'i') !=# ''
       iunmap $1
     endif
