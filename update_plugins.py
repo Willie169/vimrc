@@ -57,6 +57,7 @@ editorconfig-vim https://github.com/editorconfig/editorconfig-vim
 dracula https://github.com/dracula/vim
 copilot.vim https://github.com/github/copilot.vim
 vim-terraform https://github.com/hashivim/vim-terraform
+vim-wayland-clipboard https://github.com/jasonccox/vim-wayland-clipboard
 """.strip()
 
 GITHUB_ZIP = "%s/archive/master.zip"

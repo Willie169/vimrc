@@ -108,7 +108,7 @@ I recommend reading the docs of these plugins to understand them better. Each pl
 * [editorconfig-vim](https://github.com/editorconfig/editorconfig-vim) EditorConfig helps maintain consistent coding styles for multiple developers working on the same project across various editors and IDEs
 * [copilot.vim](https://github.com/github/copilot.vim) Plugin for GitHub Copilot (AI autocompletion FTW 😅)
 * [vim-terraform](https://github.com/hashivim/vim-terraform) Plugin for syntax highlighting, indentation and more for HCL and Terraform-related files
-
+* [vim-wayland-clipboard](https://github.com/jasonccox/vim-wayland-clipboard) Plugin that allows Vim to integrate with the Wayland clipboard when using the `+` register
 
 ## Included color schemes
 
