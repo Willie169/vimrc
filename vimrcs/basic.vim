@@ -182,8 +182,7 @@ set noswapfile
 " => Clipboard
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Let yanks/deletes go to both internal default register and system clipboard
-set clipboard^=unnamed
-set clipboard^=unnamedplus
+set clipboard=unnamedplus,unnamed
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
