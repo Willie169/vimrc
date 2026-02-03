@@ -9,3 +9,4 @@ my_configs/
 my_configs.vim
 tags
 .DS_Store
+.aider*

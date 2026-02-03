@@ -110,6 +110,7 @@ I recommend reading the docs of these plugins to understand them better. Each pl
 * [vim-terraform](https://github.com/hashivim/vim-terraform) Plugin for syntax highlighting, indentation and more for HCL and Terraform-related files
 * [vim-wayland-clipboard](https://github.com/jasonccox/vim-wayland-clipboard) Plugin that allows Vim to integrate with the Wayland clipboard when using the `+` register
 
+
 ## Included color schemes
 
 Type `:colorscheme <Tab>` to try out color schemes on the fly,
