@@ -109,6 +109,7 @@ I recommend reading the docs of these plugins to understand them better. Each pl
 * [copilot.vim](https://github.com/github/copilot.vim) Plugin for GitHub Copilot (AI autocompletion FTW 😅)
 * [vim-terraform](https://github.com/hashivim/vim-terraform) Plugin for syntax highlighting, indentation and more for HCL and Terraform-related files
 * [vim-wayland-clipboard](https://github.com/jasonccox/vim-wayland-clipboard) Plugin that allows Vim to integrate with the Wayland clipboard when using the `+` register
+* [fcitx.vim](https://github.com/lilydjwg/fcitx.vim) Keep and restore fcitx state for each buffer separately when leaving/re-entering insert mode or search mode.
 
 
 ## Included color schemes

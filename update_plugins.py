@@ -58,6 +58,7 @@ dracula https://github.com/dracula/vim
 copilot.vim https://github.com/github/copilot.vim
 vim-terraform https://github.com/hashivim/vim-terraform
 vim-wayland-clipboard https://github.com/jasonccox/vim-wayland-clipboard
+fcitx.vim https://github.com/lilydjwg/fcitx.vim
 """.strip()
 
 GITHUB_ZIP = "%s/archive/master.zip"
