@@ -44,7 +44,7 @@ endfunction
 
 function! ale_linters#python#pylint#GetCommand(buffer, version) abort
     let l:executable = ale_linters#python#pylint#GetExecutable(a:buffer)
-    let l:exec_args = l:executable =~? 'pipenv\|poetry\|uv$'
+    let l:exec_args = l:executable =~? '\(pipenv\|poetry\|uv\)$'
     \   ? ' run pylint'
     \   : ''
 
@@ -82,7 +82,7 @@ function! ale_linters#python#pylint#Handle(buffer, lines) abort
             continue
         endif
 
-        if ale#Var(a:buffer, 'python_pylint_use_msg_id') is# 1
+        if ale#Var(a:buffer, 'python_pylint_use_msg_id')
             let l:code_out = l:code
         else
             let l:code_out = l:match[4]

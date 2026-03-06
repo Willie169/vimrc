@@ -32,7 +32,7 @@ function! ale#fixers#black#Fix(buffer) abort
     let l:executable = ale#fixers#black#GetExecutable(a:buffer)
     let l:cmd = [ale#Escape(l:executable)]
 
-    if l:executable =~? 'pipenv\|poetry\|uv$'
+    if l:executable =~? '\(pipenv\|poetry\|uv\)$'
         call extend(l:cmd, ['run', 'black'])
     endif
 
@@ -41,6 +41,9 @@ function! ale#fixers#black#Fix(buffer) abort
     if !empty(l:options)
         call add(l:cmd, l:options)
     endif
+
+    let l:fname = expand('#' . a:buffer . '...')
+    call add(l:cmd, '--stdin-filename '.ale#Escape(ale#path#Simplify(l:fname)))
 
     if expand('#' . a:buffer . ':e') is? 'pyi'
         call add(l:cmd, '--pyi')

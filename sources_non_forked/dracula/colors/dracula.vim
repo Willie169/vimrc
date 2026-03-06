@@ -995,6 +995,62 @@ if has('nvim')
   hi! link GitSignsDeleteNr DraculaRed
   " }}}
 
+  " Saghen/blink.cmp {{{
+  hi! link BlinkCmpKindText DraculaFg
+  hi! link BlinkCmpKindMethod Function
+  hi! link BlinkCmpKindFunction Function
+  hi! link BlinkCmpKindConstructor DraculaCyan
+  hi! link BlinkCmpKindField DraculaOrange
+  hi! link BlinkCmpKindVariable DraculaPurpleItalic
+  hi! link BlinkCmpKindClass DraculaCyan
+  hi! link BlinkCmpKindInterface DraculaCyan
+  hi! link BlinkCmpKindModule DraculaYellow
+  hi! link BlinkCmpKindProperty DraculaPink
+  hi! link BlinkCmpKindUnit DraculaFg
+  hi! link BlinkCmpKindValue DraculaYellow
+  hi! link BlinkCmpKindEnum DraculaPink
+  hi! link BlinkCmpKindKeyword DraculaPink
+  hi! link BlinkCmpKindSnippet DraculaFg
+  hi! link BlinkCmpKindColor DraculaYellow
+  hi! link BlinkCmpKindFile DraculaYellow
+  hi! link BlinkCmpKindReference DraculaOrange
+  hi! link BlinkCmpKindFolder DraculaYellow
+  hi! link BlinkCmpKindEnumMember DraculaPurple
+  hi! link BlinkCmpKindConstant DraculaPurple
+  hi! link BlinkCmpKindStruct DraculaPink
+  hi! link BlinkCmpKindEvent DraculaFg
+  hi! link BlinkCmpKindOperator DraculaPink
+  hi! link BlinkCmpKindTypeParameter DraculaCyan
+  " }}}
+
+  " nvim-tree/nvim-tree.lua {{{
+  hi! link NvimTreeEmptyFolderName DraculaPurple
+  hi! link NvimTreeExecFile DraculaGreen
+  hi! link NvimTreeFolderIcon DraculaPurple
+  hi! link NvimTreeFolderName DraculaPurpleBold
+  hi! link NvimTreeGitDeleted DraculaRed
+  hi! link NvimTreeGitDirty DraculaOrange
+  hi! link NvimTreeGitNew DraculaGreen
+  hi! link NvimTreeGitStaged DraculaGreen
+  hi! link NvimTreeImageFile DraculaPink
+  hi! link NvimTreeIndentMarker DraculaComment
+  hi! link NvimTreeOpenedFolderName DraculaPurpleBold
+  hi! link NvimTreeRootFolder DraculaPurpleItalic
+  hi! link NvimTreeSymlink DraculaCyan
+  hi! link NvimTreeSymlinkFolderName DraculaPurple
+  " }}}
+
+  " nvim-mini/mini.icons {{{
+  hi! link MiniIconsAzure DraculaCyan
+  hi! link MiniIconsBlue DraculaCyan
+  hi! link MiniIconsCyan DraculaCyan
+  hi! link MiniIconsGreen DraculaGreen
+  hi! link MiniIconsGrey DraculaFg
+  hi! link MiniIconsOrange DraculaOrange
+  hi! link MiniIconsPurple DraculaPurple
+  hi! link MiniIconsRed DraculaRed
+  hi! link MiniIconsYellow DraculaYellow
+  " }}}
 endif
 " }}}
 

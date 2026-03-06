@@ -48,7 +48,7 @@ function! ale#ShouldDoNothing(buffer) abort
     endif
 
     " Do nothing for diff buffers.
-    if getbufvar(a:buffer, '&diff')
+    if getbufvar(a:buffer, '&diff') && !get(g:, 'ale_lint_diff', 0)
         return 1
     endif
 
@@ -171,7 +171,7 @@ function! ale#Queue(delay, ...) abort
     endif
 endfunction
 
-let s:current_ale_version = [3, 3, 0]
+let s:current_ale_version = [4, 0, 0]
 
 " A function used to check for ALE features in files outside of the project.
 function! ale#Has(feature) abort

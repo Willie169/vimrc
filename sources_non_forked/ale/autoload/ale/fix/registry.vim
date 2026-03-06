@@ -17,6 +17,11 @@ let s:default_registry = {
 \       'suggested_filetypes': ['help'],
 \       'description': 'Align help tags to the right margin',
 \   },
+\   'apkbuild-fixer': {
+\       'function': 'ale#fixers#apkbuild_fixer#Fix',
+\       'suggested_filetypes': ['apkbuild'],
+\       'description': 'Fix policy violations found by apkbuild-lint in APKBUILDs',
+\   },
 \   'autoimport': {
 \       'function': 'ale#fixers#autoimport#Fix',
 \       'suggested_filetypes': ['python'],
@@ -39,7 +44,7 @@ let s:default_registry = {
 \   },
 \   'biome': {
 \       'function': 'ale#fixers#biome#Fix',
-\       'suggested_filetypes': ['javascript', 'typescript', 'json', 'jsonc'],
+\       'suggested_filetypes': ['javascript', 'typescript', 'json', 'jsonc', 'css', 'graphql'],
 \       'description': 'Fix JavaScript and TypeScript using biome.',
 \   },
 \   'black': {
@@ -93,10 +98,26 @@ let s:default_registry = {
 \       'suggested_filetypes': ['dhall'],
 \       'description': 'Standard code formatter for the Dhall language and removing dead code',
 \   },
+\   'djlint': {
+\       'function': 'ale#fixers#djlint#Fix',
+\       'suggested_filetypes': ['html', 'htmldjango', 'htmlangular', 'jinja', 'handlebars', 'nunjucks', 'gohtmltmpl'],
+\       'description': 'Fix HTML templates with `djlint --reformat`.',
+\   },
 \   'dune': {
 \       'function': 'ale#fixers#dune#Fix',
 \       'suggested_filetypes': ['dune'],
 \       'description': 'Fix dune files with dune format',
+\   },
+\   'erlang_mode': {
+\       'function': 'ale#fixers#erlang_mode#Fix',
+\       'suggested_filetypes': ['erlang'],
+\       'description': 'Indent with the Erlang mode for Emacs',
+\       'aliases': ['erlang-mode'],
+\   },
+\   'erlfmt': {
+\       'function': 'ale#fixers#erlfmt#Fix',
+\       'suggested_filetypes': ['erlang'],
+\       'description': 'Format Erlang code with erlfmt',
 \   },
 \   'fecs': {
 \       'function': 'ale#fixers#fecs#Fix',
@@ -107,6 +128,11 @@ let s:default_registry = {
 \       'function': 'ale#fixers#hurlfmt#Fix',
 \       'suggested_filetypes': ['hurl'],
 \       'description': 'Fix hurl files with hurlfmt.',
+\   },
+\   'kulala_fmt': {
+\       'function': 'ale#fixers#kulala_fmt#Fix',
+\       'suggested_filetypes': ['http', 'rest'],
+\       'description': 'Fix http and rest files with kulala_fmt.',
 \   },
 \   'tidy': {
 \       'function': 'ale#fixers#tidy#Fix',
@@ -166,6 +192,11 @@ let s:default_registry = {
 \       'suggested_filetypes': ['python'],
 \       'description': 'Tidy Python imports with pyflyby.',
 \   },
+\   'unimport': {
+\       'function': 'ale#fixers#unimport#Fix',
+\       'suggested_filetypes': ['python'],
+\       'description': 'unimport fixer',
+\   },
 \   'importjs': {
 \       'function': 'ale#fixers#importjs#Fix',
 \       'suggested_filetypes': ['javascript'],
@@ -200,6 +231,11 @@ let s:default_registry = {
 \       'function': 'ale#fixers#yapf#Fix',
 \       'suggested_filetypes': ['python'],
 \       'description': 'Fix Python files with yapf.',
+\   },
+\   'yq': {
+\       'function': 'ale#fixers#yq#Fix',
+\       'suggested_filetypes': ['yaml'],
+\       'description': 'Fix YAML files with yq.',
 \   },
 \   'rubocop': {
 \       'function': 'ale#fixers#rubocop#Fix',
@@ -321,6 +357,11 @@ let s:default_registry = {
 \       'suggested_filetypes': ['go'],
 \       'description': 'Fix Go files imports with goimports.',
 \   },
+\   'golangci_lint': {
+\       'function': 'ale#fixers#golangci_lint#Fix',
+\       'suggested_filetypes': ['go'],
+\       'description': 'Fix Go files with golangci-lint.',
+\   },
 \   'golines': {
 \       'function': 'ale#fixers#golines#Fix',
 \       'suggested_filetypes': ['go'],
@@ -416,6 +457,11 @@ let s:default_registry = {
 \       'suggested_filetypes': ['markdown'],
 \       'description': 'Fix markdown files with pandoc.',
 \   },
+\   'pymarkdown': {
+\       'function': 'ale#fixers#pymarkdown#Fix',
+\       'suggested_filetypes': ['markdown'],
+\       'description': 'Fix markdown files with pymarkdown.',
+\   },
 \   'shfmt': {
 \       'function': 'ale#fixers#shfmt#Fix',
 \       'suggested_filetypes': ['sh'],
@@ -450,6 +496,11 @@ let s:default_registry = {
 \       'function': 'ale#fixers#jq#Fix',
 \       'suggested_filetypes': ['json'],
 \       'description': 'Fix JSON files with jq.',
+\   },
+\   'json_pytool': {
+\       'function': 'ale#fixers#json_pytool#Fix',
+\       'suggested_filetypes': ['json'],
+\       'description': "Fix JSON files with python's built-in json.tool module.",
 \   },
 \   'protolint': {
 \       'function': 'ale#fixers#protolint#Fix',
@@ -626,6 +677,11 @@ let s:default_registry = {
 \       'suggested_filetypes': ['racket'],
 \       'description': 'Fix Racket files with raco fmt.',
 \   },
+\   'rescript_format': {
+\       'function': 'ale#fixers#rescript_format#Fix',
+\       'suggested_filetypes': ['rescript'],
+\       'description': 'Official formatter for ReScript.',
+\   },
 \   'ruff': {
 \       'function': 'ale#fixers#ruff#Fix',
 \       'suggested_filetypes': ['python'],
@@ -665,6 +721,51 @@ let s:default_registry = {
 \       'function': 'ale#fixers#rubyfmt#Fix',
 \       'suggested_filetypes': ['ruby'],
 \       'description': 'A formatter for Ruby source code',
+\   },
+\   'scadformat': {
+\       'function': 'ale#fixers#scadformat#Fix',
+\       'suggested_filetypes': ['openscad'],
+\       'description': 'Formatter for scad files',
+\   },
+\   'cljfmt': {
+\       'function': 'ale#fixers#cljfmt#Fix',
+\       'suggested_filetypes': ['clojure'],
+\       'description': 'formatter and linter for clojure files',
+\   },
+\   'typstyle': {
+\       'function': 'ale#fixers#typstyle#Fix',
+\       'suggested_filetypes': ['typst'],
+\       'description': 'A formatter for Typst files',
+\   },
+\   'roc_format': {
+\       'function': 'ale#fixers#roc_format#Fix',
+\       'suggested_filetypes': ['roc'],
+\       'description': 'Formats Roc files.',
+\   },
+\   'roc_annotate': {
+\       'function': 'ale#fixers#roc_annotate#Fix',
+\       'suggested_filetypes': ['roc'],
+\       'description': 'Annotates all top-level definitions in Roc files.',
+\   },
+\   'tombi_format': {
+\       'function': 'ale#fixers#tombi_format#Fix',
+\       'suggested_filetypes': ['toml'],
+\       'description': 'Formats TOML files',
+\   },
+\   'tombi_lint': {
+\       'function': 'ale#fixers#tombi_lint#Fix',
+\       'suggested_filetypes': ['toml'],
+\       'description': 'Lints TOML files',
+\   },
+\   'verible_format': {
+\       'function': 'ale#fixers#verible_format#Fix',
+\       'suggested_filetypes': ['verilog'],
+\       'description': 'Formats verilog files using verible.',
+\   },
+\   'markdownlint': {
+\       'function': 'ale#fixers#markdownlint#Fix',
+\       'suggested_filetypes': ['markdown'],
+\       'description': 'Fix markdown files with markdownlint.',
 \   },
 \}
 

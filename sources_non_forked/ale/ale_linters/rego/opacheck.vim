@@ -11,8 +11,8 @@ function! ale_linters#rego#opacheck#GetCommand(buffer) abort
     let l:options = ale#Var(a:buffer, 'rego_opacheck_options')
 
     return ale#Escape(ale_linters#rego#opacheck#GetExecutable(a:buffer))
-    \   . ' check %s --format json '
-    \   . (!empty(l:options) ? ' ' . l:options : '')
+    \   . ' check %s:h --format json '
+    \   . ale#Pad(l:options)
 endfunction
 
 function! ale_linters#rego#opacheck#Handle(buffer, lines) abort

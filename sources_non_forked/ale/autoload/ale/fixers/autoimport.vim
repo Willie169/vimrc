@@ -30,7 +30,7 @@ endfunction
 function! ale#fixers#autoimport#Fix(buffer) abort
     let l:executable = ale#fixers#autoimport#GetExecutable(a:buffer)
 
-    let l:exec_args = l:executable =~? 'pipenv\|poetry\|uv$'
+    let l:exec_args = l:executable =~? '\(pipenv\|poetry\|uv\)$'
     \   ? ' run autoimport'
     \   : ''
 
@@ -39,7 +39,7 @@ function! ale#fixers#autoimport#Fix(buffer) abort
     return {
     \   'cwd': '%s:h',
     \   'command': ale#Escape(l:executable) . l:exec_args
-    \       . (!empty(l:options) ? ' ' . l:options : '')
+    \       . ale#Pad(l:options)
     \       . ' -',
     \}
 endfunction

@@ -63,7 +63,7 @@ function! ale_linters#python#flakehell#GetCwd(buffer) abort
     endif
 
     if (l:change_directory is# 'project' && empty(l:cwd))
-    \|| l:change_directory is# 1
+    \|| l:change_directory
     \|| l:change_directory is# 'file'
         let l:cwd = '%s:h'
     endif
@@ -74,7 +74,7 @@ endfunction
 function! ale_linters#python#flakehell#GetCommand(buffer, version) abort
     let l:executable = ale_linters#python#flakehell#GetExecutable(a:buffer)
 
-    if (l:executable =~? 'pipenv\|poetry\|uv$')
+    if (l:executable =~? '\(pipenv\|poetry\|uv\)$')
         let l:exec_args = ' run flakehell'
     elseif (l:executable is? 'python')
         let l:exec_args = ' -m flakehell'

@@ -20,6 +20,11 @@ if exists('g:termux_clipboard__loaded') || v:version < 700 || executable('termux
 endif
 let g:termux_clipboard__loaded = 1
 
+""
+" Remap p and P only when user set g:termux_clipboard_remap to 1
+if !exists('g:termux_clipboard_remap')
+    let g:termux_clipboard_remap = 0
+endif
 
 ""
 " Merged dictionary without mutation
@@ -77,9 +82,9 @@ endif
 ""
 " See: {docs} :help TextYankPost
 " See: {docs} :help job_start
-function! s:Termux_Yank()
+function! s:Termux_Yank() abort
     if v:event['regname'] ==# ''
-        call system('termux-clipboard-set', getreg(v:event['regname']))
+        call system('sh -c "echo '.shellescape(getreg(v:event['regname'])).' | termux-clipboard-set &"')
     endif
 endfunction
 
@@ -88,22 +93,28 @@ augroup TermuxYank
 	autocmd TextYankPost * call s:Termux_Yank()
 augroup END
 
-function! s:put(p)
+function! s:clipboard_to_unnamed()
 	silent let @"=system('termux-clipboard-get')
-	return '""' . a:p
+endfunction
+
+function! s:put(p)
+    call s:clipboard_to_unnamed()
+    return '""' . a:p
 endfunction
 
 nnoremap <expr> <silent> "+p <SID>put('p')
 nnoremap <expr> <silent> "+P <SID>put('P')
-nnoremap <expr> <silent> p <SID>put('p')
-nnoremap <expr> <silent> P <SID>put('P')
-
-
+nnoremap <expr> <silent> l <SID>clipboard_to_unnamed()
 vnoremap <expr> <silent> "+p <SID>put('p')
 vnoremap <expr> <silent> "+P <SID>put('P')
-vnoremap <expr> <silent> p <SID>put('p')
-vnoremap <expr> <silent> P <SID>put('P')
+vnoremap <expr> <silent> l <SID>clipboard_to_unnamed()
 
+if g:termux_clipboard_remap
+    nnoremap <expr> <silent> p <SID>put('p')
+    nnoremap <expr> <silent> P <SID>put('P')
+    vnoremap <expr> <silent> p <SID>put('p')
+    vnoremap <expr> <silent> P <SID>put('P')
+endif
 
 inoremap <expr> <silent> <C-R>+ <SID>put("\<C-R>")
 inoremap <expr> <silent> <C-R><C-R>+ <SID>put("\<C-R>\<C-R>")

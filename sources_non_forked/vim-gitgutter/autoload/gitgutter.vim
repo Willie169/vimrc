@@ -41,7 +41,7 @@ function! gitgutter#process_buffer(bufnr, force) abort
 
       let diff = 'NOT SET'
       try
-        let diff = gitgutter#diff#run_diff(a:bufnr, g:gitgutter_diff_relative_to, 0)
+        let diff = gitgutter#diff#run_diff(a:bufnr, g:gitgutter_diff_relative_to)
       catch /gitgutter not tracked/
         call gitgutter#debug#log('Not tracked: '.gitgutter#utility#file(a:bufnr))
       catch /gitgutter assume unchanged/
@@ -259,6 +259,10 @@ function! gitgutter#difforig()
 
   vertical new
   set buftype=nofile
+  if v:version >= 800
+     setlocal bufhidden=wipe
+  endif
+  setlocal noswapfile
   let &filetype = filetype
 
   if g:gitgutter_diff_relative_to ==# 'index'
@@ -273,6 +277,7 @@ function! gitgutter#difforig()
 
   0d_
   diffthis
+  setlocal nomodifiable
   wincmd p
   diffthis
 endfunction

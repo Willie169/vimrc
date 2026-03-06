@@ -263,7 +263,7 @@ function! s:hunk_op(op, ...)
   if gitgutter#utility#is_active(bufnr)
     " Get a (synchronous) diff.
     let [async, g:gitgutter_async] = [g:gitgutter_async, 0]
-    let diff = gitgutter#diff#run_diff(bufnr, g:gitgutter_diff_relative_to, 1)
+    let diff = gitgutter#diff#run_diff(bufnr, g:gitgutter_diff_relative_to)
     let g:gitgutter_async = async
 
     call gitgutter#hunk#set_hunks(bufnr, gitgutter#diff#parse_diff(diff))
@@ -359,6 +359,11 @@ endfunction
 
 
 function! s:preview(hunk_diff)
+  if g:gitgutter_preview_win_floating && exists('*nvim_set_current_win') && s:winid != 0
+    call nvim_set_current_win(s:winid)
+    return
+  endif
+
   let lines = split(a:hunk_diff, '\r\?\n')
   let header = lines[0:4]
   let body = lines[5:]

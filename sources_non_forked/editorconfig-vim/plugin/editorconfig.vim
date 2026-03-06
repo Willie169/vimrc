@@ -1,4 +1,4 @@
-" plugin/editorconfig.vim: EditorConfig native Vimscript plugin file
+" plugin/editorconfig.vim: EditorConfig native Vim script plugin file
 " Copyright (c) 2011-2019 EditorConfig Team
 " All rights reserved.
 "
@@ -209,15 +209,9 @@ function! s:UseConfigFiles(from_autocmd) abort " Apply config to the current buf
     " from_autocmd is truthy if called from an autocmd, falsy otherwise.
 
     " Get the properties of the buffer we are working on
-    if a:from_autocmd
-        let l:bufnr = str2nr(expand('<abuf>'))
-        let l:buffer_name = expand('<afile>:p')
-        let l:buffer_path = expand('<afile>:p:h')
-    else
-        let l:bufnr = bufnr('%')
-        let l:buffer_name = expand('%:p')
-        let l:buffer_path = expand('%:p:h')
-    endif
+    let l:bufnr = a:from_autocmd ? str2nr(expand('<abuf>')) : bufnr('%')
+    let l:buffer_name = expand('#'.l:bufnr.':p')
+    let l:buffer_path = expand('#'.l:bufnr.':p:h')
     call setbufvar(l:bufnr, 'editorconfig_tried', 1)
 
     " Only process normal buffers (do not treat help files as '.txt' files)
@@ -361,7 +355,7 @@ function! s:SpawnExternalParser(bufnr, cmd, target) " {{{2
     let l:cmd = l:cmd . ' ' . shellescape(a:target)
     call s:ResetShellSlash(a:bufnr)
 
-    let l:parsing_result = split(system(l:cmd), '\v[\r\n]+')
+    silent let l:parsing_result = split(system(l:cmd), '\v[\r\n]+')
 
     " if editorconfig core's exit code is not zero, give out an error
     " message
