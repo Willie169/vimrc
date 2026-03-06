@@ -71,7 +71,6 @@ else
 	let g:termux_clipboard = s:defaults
 endif
 
-
 ""
 " ... Registration of mode mapping should be added here...
 
@@ -79,14 +78,9 @@ endif
 " See: {docs} :help TextYankPost
 " See: {docs} :help job_start
 function! s:Termux_Yank()
-	if v:event['regname'] == '+' || v:event['regname'] == ''
-				silent call job_start(['termux-clipboard-set'] + [getreg(v:event['regname'])], {
-					\ 	"in_io": "null",
-					\ 	"out_io": "null",
-					\ 	"err_io": "null",
-					\ 	"stoponexit": "",
-					\ })
-	endif
+    if v:event['regname'] ==# ''
+        call system('termux-clipboard-set', getreg(v:event['regname']))
+    endif
 endfunction
 
 augroup TermuxYank
@@ -94,40 +88,27 @@ augroup TermuxYank
 	autocmd TextYankPost * call s:Termux_Yank()
 augroup END
 
-function! s:clipboard_to_unnamed()
+function! s:put(p)
 	silent let @"=system('termux-clipboard-get')
-endfunction
-
-function! s:put(p, fallback)
-	if a:fallback
-			return a:p
-	endif
-
-	call s:clipboard_to_unnamed()
 	return '""' . a:p
 endfunction
 
-function! s:ctrl_r(cr)
-	call s:clipboard_to_unnamed()
-	return a:cr . '"'
-endfunction
-
-nnoremap <expr> <silent> "+p <SID>put('p', v:false)
-nnoremap <expr> <silent> "+P <SID>put('P', v:false)
-nnoremap <expr> <silent> p <SID>put('p', has('clipboard') && clipboard !~ 'unnamedplus')
-nnoremap <expr> <silent> P <SID>put('P', has('clipboard') && clipboard !~ 'unnamedplus')
+nnoremap <expr> <silent> "+p <SID>put('p')
+nnoremap <expr> <silent> "+P <SID>put('P')
+nnoremap <expr> <silent> p <SID>put('p')
+nnoremap <expr> <silent> P <SID>put('P')
 
 
-vnoremap <expr> <silent> "+p <SID>put('p', v:false)
-vnoremap <expr> <silent> "+P <SID>put('P', v:false)
-vnoremap <expr> <silent> p <SID>put('p', has('clipboard') && &clipboard !~ 'unnamedplus')
-vnoremap <expr> <silent> P <SID>put('P', has('clipboard') && &clipboard !~ 'unnamedplus')
+vnoremap <expr> <silent> "+p <SID>put('p')
+vnoremap <expr> <silent> "+P <SID>put('P')
+vnoremap <expr> <silent> p <SID>put('p')
+vnoremap <expr> <silent> P <SID>put('P')
 
 
-inoremap <expr> <silent> <C-R>+ <SID>ctrl_r("\<C-R>")
-inoremap <expr> <silent> <C-R><C-R>+ <SID>ctrl_r("\<C-R>\<C-R>")
-inoremap <expr> <silent> <C-R><C-O>+ <SID>ctrl_r("\<C-R>\<C-O>")
-inoremap <expr> <silent> <C-R><C-P>+ <SID>ctrl_r("\<C-R>\<C-P>")
+inoremap <expr> <silent> <C-R>+ <SID>put("\<C-R>")
+inoremap <expr> <silent> <C-R><C-R>+ <SID>put("\<C-R>\<C-R>")
+inoremap <expr> <silent> <C-R><C-O>+ <SID>put("\<C-R>\<C-O>")
+inoremap <expr> <silent> <C-R><C-P>+ <SID>put("\<C-R>\<C-P>")
 
 
 " vim:foldmethod=marker:foldlevel=0

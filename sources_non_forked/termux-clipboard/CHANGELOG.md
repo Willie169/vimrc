@@ -11,9 +11,6 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 ## [Unreleased]
 
 
-- Detect when device state disallows access to `termux-clipboard-get` and
-  `termux-clipboard-set` commands
-
    > Possibly related discussions and information
    >
    > - [GitHub -- `termux/termux-app` -- Issue `3838` -- Feature: Screen dimming in Termux settings](https://github.com/termux/termux-app/issues/3838)
@@ -34,5 +31,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ### Added
 
+
 - Add fast finish when Termux clipboard commands are not available.
+- Remove fallback since Termux build typically doesn't have clipboard support.
+- Change yank to use system to be more robust.
 

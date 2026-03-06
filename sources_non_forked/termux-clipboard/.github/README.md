@@ -43,7 +43,7 @@ Linux package managers are able to install Vim directly, eg...
 
 
    ```bash
-   pkg install termux-api
+   pkg install vim
    ```
 
 > Note; installing without python support, eg. `pkg install vim`, _should_ also
