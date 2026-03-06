@@ -84,7 +84,10 @@ endif
 " See: {docs} :help job_start
 function! s:Termux_Yank() abort
     if v:event['regname'] ==# ''
-        call system('sh -c "echo '.shellescape(getreg(v:event['regname'])).' | termux-clipboard-set &"')
+        let l:text = getreg(v:event['regname'])
+        let l:uuid = substitute(system('uuidgen'), '\n', '', '')
+        let l:cmd = "cat << '" . l:uuid . "'" . ' | termux-clipboard-set &' . "\n" . l:text . "\n" . l:uuid
+        call system('sh', l:cmd)
     endif
 endfunction
 
@@ -104,10 +107,10 @@ endfunction
 
 nnoremap <expr> <silent> "+p <SID>put('p')
 nnoremap <expr> <silent> "+P <SID>put('P')
-nnoremap <expr> <silent> l <SID>clipboard_to_unnamed()
+nnoremap <expr> <silent> Z <SID>clipboard_to_unnamed()
 vnoremap <expr> <silent> "+p <SID>put('p')
 vnoremap <expr> <silent> "+P <SID>put('P')
-vnoremap <expr> <silent> l <SID>clipboard_to_unnamed()
+vnoremap <expr> <silent> Z <SID>clipboard_to_unnamed()
 
 if g:termux_clipboard_remap
     nnoremap <expr> <silent> p <SID>put('p')

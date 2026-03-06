@@ -21,20 +21,20 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 - Start maintaining versions and a changelog.
 
-## [0.0.2] - 2026-03-06
+## [0.0.2] - 2026-03-08
 
 ### Added
 
 - Add fast finish when Termux clipboard commands are not available.
-- Add l mapping to get Android clipboard into unnamed reg.
+- Add `Z` mapping to get Android clipboard into unnamed reg.
 
 ### Changed
 
-- Change yank to use system to be more robust.
-- Change p and P to not be remapped by default to be compatible with [vim-yankstack](https://github.com/maxbrunsfeld/vim-yankstack).
+- Change yanking to use system to be more robust.
+- Change `p` and `P` to not be remapped by default to be compatible with [vim-yankstack](https://github.com/maxbrunsfeld/vim-yankstack).
 - Fix <https://github.com/vim-utilities/termux-clipboard/issues/1>.
 
 ### Removed
 
-- Remove fallback for + since Termux build typically doesn't have clipboard support.
+- Remove fallback since Termux build typically doesn't have clipboard support.
 
