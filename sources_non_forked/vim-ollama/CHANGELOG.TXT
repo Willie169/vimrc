@@ -1,0 +1,93 @@
+# CHANGELOG for vim-ollama
+
+All notable changes to this project will be documented in this file.
+
+## [Unreleased] - Planned changes and ideas...
+- Cycle through different suggestions in code completion.
+- Generic template support read from the model itself.
+- Add repo completion with multiple files
+- Insert contexts into chat window using special keywords (e.g. @Files)
+- AI Tool support for agentic behavior
+
+## [Version 1.2] - 2025-10-31
+
+- Add support for OpenAI REST API, this includes support for
+  - OpenAI (https://openai.com)
+  - Mistral (https://mistral.ai)
+  - and local OpenAI endpoints like e.g. LM-Studio
+  - add UNIX password manager credential access
+- Add support for manual triggering code completion
+- Improve killing of running python chat processes
+
+- User contributions
+  - merged PR-84: Preserve newlines in logfile
+  - merged PR-82: Use more modern .. string concatenation
+  - merged PR-78,80: Improve documentation
+  - merged PR-77: Add completion filetype allow/deny list
+  - merged PR-70: Improve finding plugin directory
+  - merged PR-68: Don't interfere with non-ollama-chat buffers
+  - merged PR-65: Add granite-code model support
+  - merged PR-64: Add codegeex4 model support
+  - merged PR-61: Add support for vim with dynamically linked python
+
+## [Version 1.1] - 2025-03-18
+
+### Added
+- Add support for Python virtual environments.
+- The setup wizard can now create a _venv_ and install all python dependencies
+  automatically using _pip_.
+- Add new command `:Ollama pipinstall` to call install all python deps (again),
+  or add new deps after a plugin update.
+
+### Changes
+- Change default mapping `<C-I>` to `<leader>e`, because many terminals map `<C-I>`
+- Various bugfixes: See git history for more details.
+  to `<TAB>`.
+
+## [Version 1.0] - 2025-02-08
+
+### Added
+- Add code editing feature with inline diff support.
+- Improved setup wizard.
+- Improved tab fallback handling to fix issues with supertab plugin (fixes #18).
+- Improved logging configuration.
+- Add more configuration variables.
+- Fix potential conflicts with other Python loggers by using `getLogger(__name__)`
+
+### Changes
+- The variable `g:ollama_timeout` was renamed `g:ollama_chat_timeout` to indicate
+  that is is only related to interactive chats.
+
+## [Version 0.4] - 2025-01-07
+
+### Added
+- Add setup wizard.
+- New command `:Ollama setup`
+- New command `:Ollama config`
+- Add scripts for listing, pulling and loading Ollama models
+
+### Changes
+- Load new config file `$HOME/.vim/config/ollama.vim` if exists
+
+## [Version 0.3] - 2025-01-06
+
+### Changes
+- Simplify FIM token configuration for tab completion models
+  The configuration is now done outside vim in model specific configuration files.
+- Fix issue with completion within a line. The remainder is no moved
+  correctly to the end of the insertion
+- Refactored python logging infrastructure
+
+## [Version 0.2] - 2024-09-20
+
+### Added
+- Add function to insert only next line of current suggestion.
+- Add function to insert only next word of current suggestion.
+- Changing mappings to use <Plug>
+
+## [Version 0.1] - 2024-09-14
+
+### Added
+- Initial release of the vim-ollama plugin.
+- Basic functionality to interact with the Ollama API within Vim.
+- Added support for running code completions and generating text.

@@ -1,0 +1,303 @@
+# Ollama Support for Vim
+
+This plugin adds Copilot-like code completion support to Vim. It uses [Ollama](https://ollama.com) as a backend, which
+can run locally and does not require cloud services, thus preserving your privacy.
+
+<p align="center">
+<img src="screenshots/VimOllama_256x256.png" alt="Vim-Ollama Logo">
+</p>
+
+## Motivation
+
+[Copilot.vim](https://github.com/github/copilot.vim) by Tim Pope is an excellent plugin for both Vim and NeoVim.
+However, it is limited to Microsoft's Copilot, a commercial cloud-based AI that requires sending all your data to
+Microsoft.
+
+With Ollama and freely available LLMs (e.g., Llama3, Codellama, Deepseek-coder-v2, etc.), you can achieve similar
+results without relying on the cloud. While other plugins are available, they typically require NeoVim, which isn't an
+alternative for me. I prefer using Vim in the terminal and do not want to switch to NeoVim for various reasons.
+
+## Features
+
+- Intelligent AI-based code completion (aka tab completion)
+- Integrated chat support for code reviews and other interactions
+- Automatic code editing based on natural language (NEW in V1.0)
+  - Supports inline-diff view for accepting changes interactively
+  - Or accept without prompt for a Git-based workflow using [vim-fugitive](https://github.com/tpope/vim-fugitive)
+    (e.g., using `:Gvdiffsplit`)
+- Python venv support for easier installation (NEW in V1.1)
+- OpenAI endpoint support for using LMStudio, Open WebUI, or commercial OpenAI services (NEW in 1.2)
+- Mistral AI support (NEW in 1.2). If you need to use a cloud service for performance reasons, this is a good choice.
+  Mistral AI, headquartered in Paris, France, is designed with European data privacy laws, particularly the General Data
+  Protection Regulation (GDPR), at its core.
+
+![Demo](screenshots/game.gif)
+
+## Screencasts
+
+### Demo of Vim-Ollama 1.0
+
+[![Vim-Ollama Demo](screenshots/vlcsnap-2025-02-09-19h31m08s418.png)](https://www.youtube.com/watch?v=adakWGm1BDs)
+
+### Creating Enum to String Conversion Function Using AI
+
+[![Enum to String Conversion](screenshots/screenshot2.png)](https://www.youtube.com/watch?v=G-ivVUXCKQk)
+
+### Code Review
+
+[![Code Review](screenshots/screenshot3.png)](https://www.youtube.com/watch?v=kLkFr4rbPUo)
+
+### Custom Prompts - Spellcheck Example
+
+[![Custom Prompts](screenshots/screenshot4.png)](https://www.youtube.com/watch?v=aWEQTktv6fs)
+
+## How It Works
+
+The plugin uses Python scripts, e.g., `complete.py` and `chat.py`, to communicate with Ollama via its REST API. The
+first script handles code completion tasks, while the second script is used for interactive chat conversations. The Vim
+plugin uses these scripts via I/O redirection to integrate AI results into Vim.
+
+Optionally, it supports using the OpenAI REST API for code completion, chat conversations, and code edit tasks.
+Therefore, you need to create an OpenAI account and create an OpenAI API key on https://platform.openai.com/api-keys to
+be able to access the REST API.
+
+The plugin now also supports Mistral AI. See [Mistral Quickstart](https://docs.mistral.ai/getting-started/quickstart)
+for more information on creating an account and API keys.
+
+> [!NOTE]
+> This plugin supports Vim only, not NeoVim! If you're looking for a NeoVim plugin, check out
+> [LLM](https://github.com/huggingface/llm.nvim).
+
+## Requirements
+
+> [!NOTE]
+> Since V1.1.0, the plugin can create a Python virtual environment and install all dependencies automatically when you
+> run the setup wizard. This wizard is started automatically when you use the plugin for the first time. You can also
+> use `:Ollama setup` to run it again. This section is kept for users who started with an older version. I recommend
+> migrating to the new configuration, though. I might remove this section in the future when the new venv support has
+> proven to work well.
+
+- Python 3.x
+- Python package: `httpx>=0.23.3`, `requests`, `jinja2`, `openai` (optional), `mistral` (optional)
+
+### Debian-based Systems
+
+If you're using a Debian-based distribution, you can install the required library directly:
+
+```sh
+sudo apt install python3-httpx python3-jinja2 python3-requests
+```
+
+### Other Systems
+
+System-wide installation using `pip install` is not recommended; use a virtual environment instead.
+
+You need to run Vim from a shell with this Python environment to make this working.
+
+Example:
+```sh
+python -m venv $HOME/vim-ollama
+source $HOME/vim-ollama/bin/activate
+pip install httpx>=0.23.3
+pip install requests
+pip install jinja2
+```
+
+Testing: You can test the Python script on the shell to verify that it is working and all requirements are found. The
+script should output a completion as shown below:
+
+```sh
+$> cd path/to/vim-ollama/python
+$> echo -e 'def compute_gcd(x, y): <FILL_IN_HERE>return result' | ./complete.py -u http://localhost:11434 -m codellama:7b-code
+  if x == 0:
+    return y
+  else:
+    return compute_gcd(y % x, x)
+
+def compute_lcm(x, y):
+  result = (x * y) / compute_gcd(x, y)
+```
+
+## Installation
+
+Install `gergap/vim-ollama` using vim-plug or any other plugin manager.
+
+vim-plug example:
+```vim
+call plug#begin()
+...
+Plug 'gergap/vim-ollama'
+call plug#end()
+```
+
+> [!NOTE]
+> You can also install a plugin from a local path. This is useful for development or when installing the plugin without
+> Internet access. When using the plugin offline, you also need to ensure all Python requirements are installed.
+
+```vim
+call plug#begin()
+...
+Plug '/path/to/vim-ollama'
+call plug#end()
+```
+
+## First Run
+
+Since V0.4, the plugin includes a setup wizard that helps you set up your initial configuration. This is especially
+useful for new users who are not familiar with Ollama or the different open-source LLMs available.
+
+The plugin will run the wizard automatically if the configuration file `~/.vim/config/ollama.vim` does not yet exist. If
+you want to start the wizard again, you can use the command `:Ollama setup` at any time, but be aware that it will
+overwrite the configuration file at the end.
+
+![First Use](screenshots/firstuse.gif)
+
+## Configuration
+
+It is recommended to use the file `~/.vim/config/ollama.vim` for configuring Vim-Ollama, but you can also override the
+settings in `~/.vimrc` as in previous versions.
+
+Use the command `:Ollama config` to open the Vim-Ollama configuration file.
+
+If you are migrating from previous versions, note that the FIM tokens are not configured anymore in Vim but in the
+bundled [JSON config files](python/configs). You can simply remove the old settings from your `.vimrc`. The plugin
+should work with the most popular models out-of-the-box.
+
+The most important variables: (see `:help vim-ollama` for more information)
+
+| Variable              | Default                  | Description                            |
+|-----------------------|--------------------------|----------------------------------------|
+| `g:ollama_host`       | `http://localhost:11434` | The URL of the Ollama server.          |
+| `g:ollama_model`      | `starcoder2:3b`         | The LLM for code completions.         |
+| `g:ollama_edit_model` | `qwen2.5-coder:7b`      | The LLM for code editing tasks.       |
+| `g:ollama_chat_model` | `llama3.1:8b`           | The LLM for chat conversations.       |
+
+When adding new unsupported code completion models, you will see an error like `ERROR - Config file .../python/configs/foobar.json not found.`. Simply add this missing file and create a merge request to get it included upstream. Consult the model's documentation to find out the correct tokens.
+
+See `python/configs/README.md` for details on the config file lookup logic.
+
+### Credential Storage
+
+Commercial REST APIs typically require an API key for authentication. While you can store these keys as environment
+variables, a more secure approach is to use a password manager. The plugin supports **[UNIX password manager
+(`pass`)](https://www.passwordstore.org)**, a command-line tool that encrypts passwords using **PGP**. Under the hood,
+`pass` relies on **GnuPG**, which can securely store **RSA/ECC private keys** on **OpenPGP-compatible smartcards**
+(e.g., **YubiKey** or **NitroKey**). Instead of hardcoding API keys in environment variables, you can configure the
+plugin to fetch them from your password store. Simply specify the credential name in the plugin’s configuration file,
+and it will automatically retrieve the corresponding API key when needed.
+
+**Example Configuration:**
+
+```vim
+" Mistral API key credential name
+let g:ollama_mistral_credentialname = 'api-keys/mistral-key'
+" OpenAI API key credential name
+let g:ollama_openai_credentialname = 'api-keys/openai-key'
+```
+
+### OpenAI Configuration
+
+The `openai` provider supports OpenAI-compatible endpoints, which can be the commercial OpenAI REST API or other
+compatible endpoints like LMStudio or Open WebUI.
+
+You need to configure either the `openai` or `openai_legacy` provider for the tab completion. For chat and edit tasks,
+only `openai` works.
+
+Note that the standard OpenAI endpoint does not support fill-in-the-middle (FIM) for code completion. This is only
+supported by the legacy endpoint.
+
+| Endpoint               | Description                                        | Provider              | FIM Support |
+| ---------------------- | -------------------------------------------------- | ---------------       | ---         |
+| /v1/completions        | Legacy endpoint. Not supported by GPT-4 and GPT-5. | openai_legacy         | Yes         |
+| /v1/chat/completions   | Endpoint for newer models.                         | openai                | No          |
+| /v1/models             | For listing models.                                | openai, openai_legacy | -           |
+
+**Environment Setup:**
+Ensure that the environment variable `OPENAI_API_KEY` is correctly configured or the credential name is set in the
+plugin configuration.
+
+**Configuring Vim-Ollama:**
+1. Open the Vim-Ollama configuration file using the command:
+```vim
+:Ollama config
+```
+
+2. Add the following configuration to switch to the OpenAI backend:
+```vim
+" OpenAI example configuration
+let g:ollama_openai_credentialname = 'api-keys/openai-key'
+let g:ollama_model_provider = 'openai_legacy'
+let g:ollama_model = 'gpt-3.5-turbo'
+let g:ollama_chat_provider = 'openai'
+let g:ollama_chat_model = 'gpt-4.1-mini'
+let g:ollama_edit_provider = 'openai'
+let g:ollama_edit_model = 'gpt-4.1-mini'
+```
+
+3. Ensure that the `openai` package is installed in your Python environment. Run the following command to update your
+   Python environment:
+```vim
+:Ollama pipinstall
+```
+
+### OpenAI/LMStudio Configuration
+
+Configuring an own OpenAI-compatible endpoint like LMStudio works similarly to the official OpenAI endpoint but without
+an API key. The `g:ollama_openai_baseurl` variable is used to configure a different base URL, which is
+`http://<hostname>:<port>/v1` for LMStudio.
+
+```vim
+" LMStudio example configuration
+let g:ollama_openai_baseurl = 'http://localhost:1234/v1' " Use local OpenAI endpoint
+let g:ollama_model_provider = 'openai_legacy'
+let g:ollama_model = 'codegemma-2b'
+let g:ollama_chat_provider = 'openai'
+let g:ollama_chat_model = 'gpt-oss'
+let g:ollama_edit_provider = 'openai'
+let g:ollama_edit_model = 'gpt-oss'
+```
+
+### Mistral API Configuration
+
+Mistral also supports an OpenAI endpoint and can be used with the `openai` provider, but the legacy OpenAI endpoint is
+not supported. Instead, using the `mistral` provider is the preferred way to use Mistral for code completion. Use the
+`openai` backend for chat and edit tasks.
+
+**Environment Setup:**
+Ensure that the environment variable `MISTRAL_API_KEY` and/or `OPENAI_API_KEY` is correctly configured or the credential
+name is set in the plugin configuration.
+
+**Configuring Vim-Ollama:**
+1. Open the Vim-Ollama configuration file using the command:
+```vim
+:Ollama config
+```
+2. Add the following configuration to switch to the Mistral backend for tab completion and the OpenAI backend for chat
+   and edit tasks.
+
+```vim
+" Mistral example configuration
+" Use mistral for tab completion
+let g:ollama_mistral_credentialname = 'api-keys/mistral-key'
+let g:ollama_model_provider = 'mistral'
+let g:ollama_model = 'codestral-2501'
+" Use OpenAI for chat and edit
+let g:ollama_openai_credentialname = 'api-keys/mistral-key'
+let g:ollama_openai_baseurl = 'https://api.mistral.ai/v1'
+let g:ollama_chat_provider = 'openai'
+let g:ollama_chat_model = 'codestral-2501'
+let g:ollama_edit_provider = 'openai'
+let g:ollama_edit_model = 'codestral-2501'
+```
+
+## Usage
+
+Simply start coding. The completions will appear as "ghost text" and can be accepted by pressing `<tab>`. To ignore
+them, just continue typing or press `<C-]>` to dismiss the suggestion.
+
+You can also accept just one line using `<M-Right>` (Alt-Right) or one word using `<M-C-Right>` (Alt-Ctrl-Right) if you
+don't want to use the complete suggestion.
+
+To disable the default mappings, use `:Ollama config` and change `g:ollama_no_maps` and/or `g:ollama_no_tab_map`.
+
+See `:help vim-ollama` for more information.

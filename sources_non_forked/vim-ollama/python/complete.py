@@ -1,0 +1,442 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-CopyrightText: 2024 Gerhard Gappmeier <gappy1502@gmx.net>
+# This script uses either Ollama or OpenAI API for oneshot code completion.
+
+import requests
+import sys
+import argparse
+import json
+import os
+import re
+from typing import Optional
+from OllamaLogger import OllamaLogger
+from OllamaCredentials import OllamaCredentials
+
+# try to load OpenAI package if it exists
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
+# try to load Mistral package if it exists
+try:
+    from mistralai import Mistral
+except ImportError:
+    Mistral = None
+
+# Default values
+DEFAULT_HOST = 'http://localhost:11434'
+DEFAULT_PROVIDER = 'ollama'
+DEFAULT_MODEL = 'codellama:code'
+DEFAULT_OPTIONS = '{ "temperature": 0, "top_p": 0.95 }'
+DEFAULT_MISTRAL_MODEL = 'codestral-2501'
+DEFAULT_OPENAI_MODEL = 'gpt-4.1-mini'
+DEFAULT_OPENAI_LEGACY_MODEL = 'gpt-3.5-turbo-instruct'
+
+# When set to true, we use our own templates and don't use the Ollama built-in templates.
+# Is is the only way to make this work reliable. As soon is this works also with Ollama
+# REST API reliable we can get rid of our own templates.
+USE_CUSTOM_TEMPLATE = True
+log = None
+
+# Module-level constants for path and compiled regex
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_CONFIG_DIR = os.path.join(_SCRIPT_DIR, "configs")
+_TRAILING_NUMBER_PATTERN = re.compile(r'[\d.]+$')
+
+
+def load_config(modelname):
+    # strip suffix (e.g ':7b-code') from modelname
+    modelname = modelname.rsplit(':', 1)[0]
+    modelname = modelname.split('/', 1)[-1]
+
+    original_modelname = modelname
+
+    # Try exact match first, then progressively strip trailing parts
+    current = modelname
+    while True:
+        config_path = os.path.join(_CONFIG_DIR, f"{current}.json")
+        try:
+            with open(config_path, 'r') as file:
+                config = json.load(file)
+                return config
+        except FileNotFoundError:
+            pass
+        except json.JSONDecodeError:
+            log.error(f"Invalid JSON in config file: {config_path}")
+            sys.exit(1)
+
+        # Strip trailing part: first by '-', then strip trailing digits
+        if '-' in current:
+            next_current = current.rsplit('-', 1)[0]
+        else:
+            next_current = _TRAILING_NUMBER_PATTERN.sub('', current)
+        if next_current == current:
+            break
+        current = next_current
+
+    log.error(f"Config file not found for {original_modelname}")
+    sys.exit(1)
+
+# config.json example:
+# {
+#     "pre": "<PRE> ",
+#     "middle": " <MIDDLE>",
+#     "suffix": " <SUFFIX>",
+#     "eot": " <EOT>"
+# }
+def fill_in_the_middle(config, prompt):
+    """
+    Searches for the string '<FILL_IN_HERE>' in the prompt and
+    creates a model specific fill-in-the-middle-prompt.
+    """
+    parts = prompt.split('<FILL_IN_HERE>')
+    log.debug(parts)
+
+    if len(parts) != 2:
+        log.error("Prompt does not contain '<FILL_IN_HERE>'.")
+        sys.exit(1)
+
+    if "suffix" in config["pre"]:
+        newprompt = config["pre"] + parts[1] + config["suffix"] + parts[0] + config["middle"]
+    else:
+        newprompt = config["pre"] + parts[0] + config["suffix"] + parts[1] + config["middle"]
+    log.debug(newprompt)
+
+    return newprompt
+
+def generate_code_completion(config, prompt, baseurl, model, options):
+    """ Code completion using Ollama REST API """
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': '*/*',
+        'Host': baseurl.split('//')[1].split('/')[0]
+    }
+    endpoint = baseurl + "/api/generate"
+    log.debug('endpoint: ' + endpoint)
+
+    if USE_CUSTOM_TEMPLATE:
+        log.info('Using custom prompt in raw mode')
+        # generate model specific prompt using our templates
+        prompt = fill_in_the_middle(config, prompt)
+        # Use Ollama Codegen API in raw mode, bypassing the Ollama template processing
+        data = {
+            'model': model,
+            'prompt': prompt,
+            'stream': False,
+            'raw' : True,
+            'options': options
+        }
+    else:
+        log.info("Using Ollama's built-in templates and suffix argument.")
+        # Use Ollama code completion API using built-in templates.
+        # Code completion should be done between prompt and suffix argument
+        parts = prompt.split('<FILL_IN_HERE>')
+        log.debug(parts)
+
+        if len(parts) != 2:
+            log.error("Prompt does not contain '<FILL_IN_HERE>'.")
+            sys.exit(1)
+
+        prompt = parts[0]
+        suffix = parts[1]
+        data = {
+            'model': model,
+            'prompt': prompt,
+            'suffix': suffix,
+            'stream': False,
+            'raw' : False,
+            'options': options
+        }
+    log.debug('request: ' + json.dumps(data, indent=4))
+
+    response = requests.post(endpoint, headers=headers, json=data)
+
+    if response.status_code == 200:
+        json_response = response.json()
+        log.debug('response: ' + json.dumps(json_response, indent=4))
+        completion = response.json().get('response')
+        log.info('completion:' + completion)
+
+        # find index of sub string
+        try:
+            index = completion.find(config.get('eot', '<EOT>'))
+            if index != -1:
+                completion = completion[:index] # remove EOT marker
+        except:
+            pass
+
+        return completion.rstrip()
+    else:
+        raise Exception(f"Error: {response.status_code} - {response.text}")
+
+def generate_code_completion_mistral(prompt, baseurl, model, options, credentialname):
+    """ Code completion using Mistral REST API """
+    if Mistral is None:
+        raise ImportError("Mistral package not found. Please install via 'pip install mistralai'.")
+
+    # Mistral provider does not need baseurl, we just set it to lookup the 
+    # correct API key
+    if not baseurl:
+        baseurl = 'https://api.mistral.ai/'
+
+    cred = OllamaCredentials()
+    api_key = cred.GetApiKey('mistral', credentialname)
+    log.debug('Using Mistral API')
+    client = Mistral(api_key=api_key)
+
+    parts = prompt.split('<FILL_IN_HERE>')
+    if len(parts) != 2:
+        log.error("Prompt must contain <FILL_IN_HERE> marker for OpenAI mode.")
+        sys.exit(1)
+    prompt = parts[0]
+    suffix = parts[1]
+
+    stop_marker = extract_stop_marker(suffix)
+    stops = [stop_marker] if stop_marker else []
+
+    temperature = options.get('temperature', 0)
+#    min_tokens = options.get('min_tokens', 1)
+    max_tokens = options.get('max_tokens', 300)
+
+    log.debug('model: ' + str(model))
+    log.debug('temperature: ' + str(temperature))
+    log.debug('max_tokens: ' + str(max_tokens))
+    log.debug('prompt: ' + str(prompt))
+    log.debug('suffix: ' + str(suffix))
+    log.debug('stops: ' + str(stops))
+
+    try:
+        response = client.fim.complete(
+            model=model,
+            prompt=prompt,
+            suffix=suffix,
+            temperature=temperature,
+    #        min_tokens=min_tokens,
+            max_tokens=max_tokens,
+            stop=stops
+        )
+        response = response.choices[0].message.content
+        log.debug('response: ' + response)
+    except Exception as e:
+        # Print only the root cause message, not the full traceback
+        print(f"Error: {e}", file=sys.stderr)
+        log.error(str(e))
+        sys.exit(1)
+
+    return response
+
+def extract_stop_marker(after: str) -> Optional[str]:
+    """Return the first meaningful line of `after` to use as a stop marker."""
+    for line in after.splitlines():
+        s = line.strip()
+        if s:  # skip empty lines
+            return line.rstrip()  # preserve indentation
+    return None
+
+def generate_code_completion_openai(prompt, baseurl, model, options, credentialname):
+    """Generate code completion using OpenAI's official Python SDK"""
+    if OpenAI is None:
+        raise ImportError("OpenAI package not found. Please install via 'pip install openai'.")
+
+    cred = OllamaCredentials()
+    api_key = cred.GetApiKey('openai', credentialname)
+
+    log.debug('Using OpenAI chat completion endpoint (prompt engineering)')
+    if baseurl:
+        log.debug(f'baseurl={baseurl}')
+        client = OpenAI(base_url=baseurl, api_key=api_key)
+    else:
+        log.debug(f'Using default OpenAI URL')
+        client = OpenAI(api_key=api_key)
+
+    parts = prompt.split('<FILL_IN_HERE>')
+    if len(parts) != 2:
+        log.error("Prompt must contain <FILL_IN_HERE> marker for OpenAI mode.")
+        sys.exit(1)
+    before = parts[0]
+    after = parts[1]
+
+    lang = options.get('lang', 'C')
+    # OpenAI does not support Fill-in-the-middle, so we need to use prompt engineering.
+    full_prompt = f"""You are a professional code completion engine.
+Fill in the missing code between the markers below.
+
+Rules:
+- Do NOT repeat any code that appears in the AFTER section.
+- Return only the exact code that fits between BEFORE and AFTER.
+- Do NOT add explanations or comments.
+- Output the missing code only.
+
+Language: {lang}
+
+BEFORE:
+{before}
+
+AFTER:
+{after}
+"""
+    log.debug('full_prompt: ' + full_prompt)
+
+    stop_marker = extract_stop_marker(after)
+    stops = [stop_marker] if stop_marker else []
+
+    temperature = options.get('temperature', 0)
+    max_tokens = options.get('max_tokens', 300)
+
+    log.debug('model: ' + str(model))
+    log.debug('temperature: ' + str(temperature))
+    log.debug('max_tokens: ' + str(max_tokens))
+    log.debug('stops: ' + str(stops))
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": full_prompt}],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stop=stops
+        )
+        response = response.choices[0].message.content.strip()
+        log.debug('response: ' + response)
+    except Exception as e:
+        # Print only the root cause message, not the full traceback
+        print(f"Error: {e}", file=sys.stderr)
+        log.error(str(e))
+        sys.exit(1)
+
+    # convert response to lines
+    lines = response.splitlines()
+    if lines:
+        # remove 1st element from array if it starts with ```
+        if lines[0].startswith("```"):
+            lines.pop(0)
+        # remove last element from array if it starts with ```
+        if lines[-1].startswith("```"):
+            lines.pop()
+
+        response = "\n".join(lines)
+
+    return response
+
+def generate_code_completion_openai_legacy(prompt, baseurl, model, options, credentialname):
+    """Generate code completion using OpenAI's official Python SDK"""
+    if OpenAI is None:
+        raise ImportError("OpenAI package not found. Please install via 'pip install openai'.")
+
+    log.debug('Using OpenAI legacy completion endpoint (FIM support)')
+    cred = OllamaCredentials()
+    api_key = cred.GetApiKey('openai', credentialname)
+
+    if baseurl:
+        log.debug(f'baseurl={baseurl}')
+        client = OpenAI(base_url=baseurl, api_key=api_key)
+    else:
+        log.debug(f'Using default OpenAI URL')
+        client = OpenAI(api_key=api_key)
+
+    config = {
+        'pre': '<|fim_prefix|>',
+        'middle': '<|fim_middle|>',
+        'suffix': '<|fim_suffix|>',
+        'eot': '<|endoftext|>'
+    }
+    full_prompt = fill_in_the_middle(config, prompt)
+    log.debug('full_prompt: ' + full_prompt)
+
+    temperature = options.get('temperature', 0)
+    max_tokens = options.get('max_tokens', 300)
+
+    log.debug('model: ' + str(model))
+    log.debug('temperature: ' + str(temperature))
+    log.debug('max_tokens: ' + str(max_tokens))
+    response = client.completions.create(
+        model=model,
+        prompt=full_prompt,
+        temperature=temperature,
+        max_tokens=max_tokens
+    )
+    response = response.choices[0].text
+    log.debug('response: ' + response)
+
+    return response.rstrip()
+
+if __name__ == "__main__":
+    try:
+        parser = argparse.ArgumentParser(description="Complete code using Ollama or OpenAI LLM.")
+        parser.add_argument('-p', '--provider', type=str, default=DEFAULT_PROVIDER,
+                            help="LLM provider: 'ollama' (default), 'mistral', 'openai' or 'openai_legacy'")
+        parser.add_argument('-m', '--model', type=str, default=None,
+                            help="Model name (Ollama or OpenAI).")
+        parser.add_argument('-u', '--url', type=str, default=None,
+                            help="Base endpoint URL (for Ollama only).")
+        parser.add_argument('-o', '--options', type=str, default=DEFAULT_OPTIONS,
+                            help="Ollama REST API options (JSON string).")
+        parser.add_argument('-l', '--log-level', type=int, default=OllamaLogger.ERROR,
+                            help="Specify log level")
+        parser.add_argument('-f', '--log-filename', type=str, default="complete.log",
+                            help="Specify log filename")
+        parser.add_argument('-d', '--log-dir', type=str, default="/tmp/logs",
+                            help="Specify log file directory")
+        parser.add_argument('-T', action='store_false', default=True,
+                            help="Use Ollama code generation suffix (experimental)")
+        parser.add_argument('-k', '--keyname', default=None,
+                            help="Credential name to lookup API key and password store")
+        args = parser.parse_args()
+
+        log = OllamaLogger(args.log_dir, args.log_filename)
+        log.setLevel(args.log_level)
+        USE_CUSTOM_TEMPLATE = args.T
+
+        # parse options JSON string
+        try:
+            options = json.loads(args.options)
+        except json.JSONDecodeError:
+            options = json.loads(DEFAULT_OPTIONS)
+
+        prompt = sys.stdin.read()
+
+        if args.provider == "ollama":
+            if args.model:
+                modelname = args.model
+            else:
+                modelname = DEFAULT_MODEL
+            baseurl = args.url or DEFAULT_HOST
+            config = load_config(modelname) if USE_CUSTOM_TEMPLATE else None
+            response = generate_code_completion(config, prompt, baseurl, modelname, options)
+        elif args.provider == "mistral":
+            if args.model:
+                modelname = args.model
+            else:
+                modelname = DEFAULT_MISTRAL_MODEL
+            baseurl = args.url or None
+            response = generate_code_completion_mistral(prompt, baseurl, modelname, options, args.keyname)
+        elif args.provider == "openai":
+            if args.model:
+                modelname = args.model
+            else:
+                modelname = DEFAULT_OPENAI_MODEL
+            baseurl = args.url or None
+            response = generate_code_completion_openai(prompt, baseurl, modelname, options, args.keyname)
+        elif args.provider == "openai_legacy":
+            if args.model:
+                modelname = args.model
+            else:
+                modelname = DEFAULT_OPENAI_LEGACY_MODEL
+            baseurl = args.url or None
+            response = generate_code_completion_openai_legacy(prompt, baseurl, modelname, options, args.keyname)
+        else:
+            log.error(f"Unknown provider: {args.provider}")
+            sys.exit(1)
+
+        print(response, end='')
+
+    except KeyboardInterrupt:
+        # Allow Ctrl+C without traceback
+        print("Error: Aborted by user", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        # Print only the root cause message, not the full traceback
+        print(f"Error: {e}", file=sys.stderr)
+        log.error(str(e))
+        sys.exit(1)

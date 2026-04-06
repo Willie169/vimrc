@@ -1,0 +1,5 @@
+{
+    "pre": "<｜fim▁begin｜>",
+    "middle": "<｜fim▁end｜>",
+    "suffix": "<｜fim▁hole｜>"
+}

@@ -1,0 +1,563 @@
+" autoload/ollama.vim
+" SPDX-License-Identifier: GPL-3.0-or-later
+" SPDX-CopyrightText: 2024 Gerhard Gappmeier <gappy1502@gmx.net>
+" SPDX-CopyrightTdxt: Copyright (C) 2023 GitHub, Inc. - All Rights Reserved
+" This file started as a copy of copilot.vim but was rewritten entirely,
+" because of the different concept of talking with Ollama instead of MS
+" copilot. Still it can contain tiny fragments of the original code.
+scriptencoding utf-8
+
+" numeric timer Id
+let s:timer_id = -1
+" a running REST API job
+let s:job = v:null
+let s:kill_job = v:null
+" current prompt
+let s:prompt = ''
+" current suggestions
+let s:suggestion = ''
+" text property id for ghost text
+let s:prop_id = -1
+" suppress internally trigger reschedules due to inserts
+" only when the user types text we want a reschedule
+let s:ignore_schedule = 0
+" API key cache in sccript local variable. This way we can get the API keys
+" once from UNIX pass and then set it as env variable for child processes
+" without accessing the pass manager again or the need of storing the key 
+" in a plain text file.
+let s:openai_api_key = ''
+let s:mistral_api_key = ''
+
+let s:vim_minimum_version = '9.0.0185'
+let s:has_vim_ghost_text = has('patch-' .. s:vim_minimum_version) && has('textprop')
+
+let s:hlgroup = 'OllamaSuggestion'
+let s:annot_hlgroup = 'OllamaAnnotation'
+
+if s:has_vim_ghost_text
+    if empty(prop_type_get(s:hlgroup))
+        call prop_type_add(s:hlgroup, {'highlight': s:hlgroup})
+    endif
+    if empty(prop_type_get(s:annot_hlgroup))
+        call prop_type_add(s:annot_hlgroup, {'highlight': s:annot_hlgroup})
+    endif
+else
+    echom "warning: Vim " .. s:vim_minimum_version
+          \ .. " or newer is required to support ghost text (textprop)"
+endif
+
+" Gets the Mistral API key from UNIX pass and caches it as a script local
+" variable
+function! s:GetMistralApiKey() abort
+    if exists('s:mistral_api_key') && s:mistral_api_key !=# ''
+        return s:mistral_api_key
+    endif
+
+    " Run Python once to retrieve and store the key
+    python3 << EOF
+import vim
+from OllamaCredentials import OllamaCredentials
+
+credentialname = vim.eval('get(g:, "ollama_mistral_credentialname", "")')
+key = ""
+try:
+    key = OllamaCredentials().GetApiKey("mistral", credentialname)
+except Exception as e:
+    vim.command(f'echom "Failed to get Mistral key: {e}"')
+if key:
+    vim.command(f'let s:mistral_api_key = "{key}"')
+EOF
+
+    return s:mistral_api_key
+endfunction
+
+" Gets the OpenAI API key from UNIX pass and caches it as a script local
+" variable
+function! s:GetOpenAIApiKey() abort
+    if exists('s:openai_api_key') && s:openai_api_key !=# ''
+        return s:openai_api_key
+    endif
+
+    " Run Python once to retrieve and store the key
+    python3 << EOF
+import vim
+from OllamaCredentials import OllamaCredentials
+
+credentialname = vim.eval('get(g:, "ollama_openai_credentialname", "")')
+key = ""
+try:
+    key = OllamaCredentials().GetApiKey("openai", credentialname)
+except Exception as e:
+    vim.command(f'echom "Failed to get OpenAI key: {e}"')
+if key:
+    vim.command(f'let s:openai_api_key = "{key}"')
+EOF
+
+    return s:openai_api_key
+endfunction
+
+function! ollama#TriggerCompletion()
+    call ollama#logger#Debug("TriggerCompletion...")
+    " get current buffer type
+    if &buftype=='prompt'
+        call ollama#logger#Debug("Ignoring prompt buffer")
+        return
+    endif
+    call s:KillTimer()
+    let s:suggestion = ''
+    call ollama#UpdatePreview(s:suggestion)
+    " directly call GetSuggestion without timer
+    call ollama#GetSuggestion(0)
+endfunction
+
+function! ollama#Schedule()
+    if !ollama#IsEnabled()
+        return
+    endif
+    if s:ignore_schedule
+        call ollama#logger#Debug("Ignore schedule")
+        let s:ignore_schedule = 0
+        return
+    endif
+    " get current buffer type
+    if &buftype=='prompt'
+        call ollama#logger#Debug("Ignoring prompt buffer")
+        return
+    endif
+    call s:KillTimer()
+    let s:suggestion = ''
+    call ollama#UpdatePreview(s:suggestion)
+    call ollama#logger#Debug("Scheduling debounce timer...")
+    let s:timer_id = timer_start(g:ollama_debounce_time, 'ollama#GetSuggestion')
+endfunction
+
+" handle output on stdout
+function! s:HandleCompletion(job, data)
+    call ollama#logger#Debug("Received completion: " .. json_encode(a:data))
+    if !empty(a:data)
+        "let l:suggestion = join(a:data, "\n")
+        let s:suggestion = substitute(a:data, "\r\n", "\n", "g")
+        call ollama#UpdatePreview(s:suggestion)
+    endif
+endfunction
+
+" handle output on stderr
+function! s:HandleError(job, data)
+    call ollama#logger#Debug("Received stderr: " .. a:data)
+    if !empty(a:data)
+        echom "Error: " .. a:data
+        call popup_notification(a:data, #{ pos: "center", time: 3000 })
+    endif
+endfunction
+
+function! s:HandleExit(job, exit_code)
+    call ollama#logger#Debug("Process exited: " .. a:exit_code)
+    if a:exit_code != 0
+        " Don't log errors if we killed the job, this is expected
+        if a:job isnot s:kill_job
+            echohl ErrorMsg
+            echom "Process exited with code: " .. a:exit_code
+            if g:ollama_model_provider =~ '^openai'
+                echom "Check if g:ollama_openai_baseurl=" .. g:ollama_openai_baseurl .. " is correct."
+            elseif g:ollama_model_provider == 'mistral'
+                echom "Check if g:ollama_mistral_baseurl=" .. g:ollama_mistral_baseurl .. " is correct."
+            else
+                echom "Check if g:ollama_host=" .. g:ollama_host .. " is correct."
+            endif
+            echohl None
+        else
+            let s:kill_job = v:null
+            call ollama#logger#Debug("Process terminated as expected")
+        endif
+        call ollama#ClearPreview()
+    endif
+    " release reference to job object
+    if s:job is a:job
+        let s:job = v:null
+    endif
+    let s:prompt = ''
+endfunction
+
+" Constructs a prompt for the completion request.
+function! s:ConstructPrompt()
+    let l:line = line('.')
+    let l:col = col('.')
+    let l:context_lines = g:ollama_context_lines
+
+    " Get the lines before and after the current line
+    let l:prefix_lines = getline(max([1, l:line - l:context_lines]), l:line - 1)
+    let l:suffix_lines = getline(l:line + 1, min([line('$'), l:line + l:context_lines]))
+
+    " Combine prefix lines and current line's prefix part
+    let l:prefix = join(l:prefix_lines, "\n")
+    if !empty(l:prefix)
+        let l:prefix ..= "\n"
+    endif
+    let l:prefix ..= strpart(getline('.'), 0, l:col - 1)
+    " Combine suffix lines and current line's suffix part
+    let l:suffix = strpart(getline('.'), l:col - 1)
+    if !empty(l:suffix)
+        let l:suffix ..= "\n"
+    endif
+    let l:suffix ..= join(l:suffix_lines, "\n")
+
+    return l:prefix .. '<FILL_IN_HERE>' .. l:suffix
+endfunction
+
+function! ollama#GetSuggestion(timer)
+    call ollama#logger#Debug("GetSuggestion")
+    " reset timer handle when called
+    let s:timer_id = -1
+
+    let l:prompt = s:ConstructPrompt()
+
+    " Clone global model options and add the current filetype
+    let l:model_options_dict = copy(g:ollama_model_options)
+    let l:model_options_dict['lang'] = &filetype
+
+    let l:model_options =
+          \ substitute(json_encode(l:model_options_dict), "\"", "\\\"", "g")
+    call ollama#logger#Debug(
+          \ "Connecting to Ollama on " .. g:ollama_host
+          \ .. " using model " .. g:ollama_model)
+    call ollama#logger#Debug("model_options=" .. l:model_options)
+    " Convert plugin debug level to python logger levels
+    let l:log_level = ollama#logger#PythonLogLevel(g:ollama_debug)
+    let l:base_url = g:ollama_host
+    if g:ollama_model_provider =~ '^openai'
+        let l:base_url = g:ollama_openai_baseurl
+    endif
+    " Adjust the command to use the prompt as stdin input
+    let l:command = [ g:ollama_python_interpreter,
+        \ g:ollama_plugin_dir .. "/python/complete.py",
+        \ "-p", g:ollama_model_provider,
+        \ "-m", g:ollama_model,
+        \ "-u", l:base_url,
+        \ "-o", l:model_options,
+        \ "-l", l:log_level
+        \ ]
+    " Add optional credentialname for looking up the API key
+    if g:ollama_model_provider =~ '^openai'
+        if g:ollama_openai_credentialname != ''
+            " add credentialname option for OpenAI
+            let l:command += [ '-k', g:ollama_openai_credentialname ]
+        endif
+    elseif g:ollama_model_provider == 'mistral'
+        if g:ollama_mistral_credentialname != ''
+            " add credentialname option for Mistral
+            let l:command += [ '-k', g:ollama_mistral_credentialname ]
+        endif
+    endif
+    call ollama#logger#Debug("command=" .. join(l:command, " "))
+    let l:job_options = {
+        \ 'out_mode': 'raw',
+        \ 'out_cb': function('s:HandleCompletion'),
+        \ 'err_cb': function('s:HandleError'),
+        \ 'exit_cb': function('s:HandleExit')
+        \ }
+
+    " set API keys as env variable
+    let l:job_env = {}
+    if g:ollama_model_provider ==# 'mistral'
+        let l:job_env['MISTRAL_API_KEY'] = s:GetMistralApiKey()
+    elseif g:ollama_model_provider =~# '^openai'
+        let l:job_env['OPENAI_API_KEY'] = s:GetOpenAIApiKey()
+    endif
+    " add the env dict to job options
+    let l:job_options.env = l:job_env
+
+    if (s:prompt == l:prompt)
+        call ollama#logger#Debug("Ignoring search for '" .. l:prompt .. "'."
+              \ .. " Already running.")
+        return
+    endif
+    " save current search
+    let s:prompt = l:prompt
+
+    " Kill any running job and replace with new one
+    if s:job isnot v:null
+        call ollama#logger#Debug("Terminating existing job.")
+        call s:KillJob()
+    endif
+
+    call ollama#logger#Debug("Starting job for '" .. l:prompt .. "'...")
+    " create job object and hold reference to avoid closing channels
+    let s:job = job_start(l:command, l:job_options)
+    let channel = job_getchannel(s:job)
+    call ch_sendraw(channel, l:prompt)
+    call ch_close_in(channel)
+endfunction
+
+function! ollama#UpdatePreview(suggestion)
+    call ollama#logger#Debug("UpdatePreview: suggestion='" .. json_encode(a:suggestion) .. "'")
+    if !empty(a:suggestion)
+        let s:suggestion = a:suggestion
+        let text = split(s:suggestion, "\r\n\\=\\|\n", 1)
+        if empty(text[-1])
+            call remove(text, -1)
+        endif
+        if empty(text) || !s:has_vim_ghost_text
+            return ollama#ClearPreview()
+        endif
+        let annot= ''
+        call ollama#ClearPreview()
+        call prop_add(line('.'), col('.'), {'type': s:hlgroup, 'text': text[0]})
+        for line in text[1:]
+            call prop_add(line('.'), 0,
+                  \ {'type': s:hlgroup, 'text_align': 'below', 'text': line})
+        endfor
+        if !empty(annot)
+            call prop_add(line('.'), col('$'),
+                  \ {'type': s:annot_hlgroup, 'text': ' ' .. annot})
+        endif
+    else
+        call ollama#ClearPreview()
+    endif
+endfunction
+
+function! ollama#ClearPreview()
+    call ollama#logger#Debug("ClearPreview")
+    if s:has_vim_ghost_text
+        call prop_remove({'type': s:hlgroup, 'all': v:true})
+        call prop_remove({'type': s:annot_hlgroup, 'all': v:true})
+    endif
+endfunction
+
+function! s:KillJob()
+    try
+        if s:job isnot v:null
+            call ollama#logger#Debug("Killing existing job.")
+            let s:kill_job = s:job
+            call job_stop(s:job, "kill")
+        endif
+    catch
+        call ollama#logger#Error("KillJob failed")
+    endtry
+endfunction
+
+function! s:KillTimer()
+    try
+        if s:timer_id != -1
+            call ollama#logger#Debug("Killing existing timer.")
+            call timer_stop(s:timer_id)
+            let s:timer_id = -1
+        endif
+    catch
+        call ollama#logger#Error("KillTimer failed")
+    endtry
+endfunction
+
+function! ollama#Clear() abort
+    call ollama#logger#Debug("Clear")
+    call s:KillTimer()
+    call s:KillJob()
+    call ollama#ClearPreview()
+    let s:suggestion = ''
+endfunction
+
+function! ollama#Dismiss() abort
+    call ollama#logger#Debug("Dismiss")
+    call ollama#Clear()
+endfunction
+
+function! ollama#InsertStringWithNewlines(text, morelines)
+    " Split the string into lines
+    let l:lines = split(a:text, "\n", 1)
+
+    " Insert first line at cursor position
+    " get current line
+    let l:line = getline('.')
+    " split line at current column
+    let l:current_col = col('.')
+    let l:before_cursor = strpart(l:line, 0, l:current_col - 1)
+    let l:after_cursor = strpart(l:line, l:current_col - 1)
+    " build new line
+    let l:new_line = l:before_cursor .. l:lines[0]
+    call setline('.', l:new_line)
+    let l:new_cursor_col = strlen(l:before_cursor) + strlen(l:lines[0])
+
+    " Get the current line number and cursor position
+    let l:current_line = line('.')
+    let l:start_line = line('.')
+
+    " Get the current indentation level
+    let l:indent = indent(line('.'))
+    let l:indent = 0 " don't add indent, it's included in AI suggestion already
+"    echom "indent=" .. indent('.')
+
+    " Append each line of the multi-line string
+    for l:line in l:lines[1:]
+        let l:indented_line = repeat(' ', l:indent) . l:line
+        call append(l:current_line, l:indented_line)
+        let l:new_cursor_col = strlen(l:indented_line)
+        let l:current_line += 1
+    endfor
+    " append after_cursor text at the end of last inserted line
+    if (l:after_cursor != "")
+        let l:line = getline(l:current_line) . l:after_cursor
+        call setline(l:current_line, l:line)
+    endif
+
+    if (a:morelines == 1)
+        call append(l:current_line, "")
+        " set cursor to next line
+        call cursor(l:current_line + 1, 0)
+    else
+        " set cursor to end of last inserted line
+        call cursor(l:current_line, l:new_cursor_col + 1)
+    endif
+endfunction
+
+function! ollama#InsertSuggestion()
+    call ollama#logger#Debug("InsertSuggestion")
+    if !empty(s:suggestion)
+        call ollama#InsertStringWithNewlines(s:suggestion, 0)
+
+        " all was inserted so we can clear the current suggestion
+        call ollama#ClearPreview()
+        let s:suggestion = ''
+        call ollama#logger#Debug("clear suggestion")
+        " Empty string to indicate we inserted an AI suggestion
+        return ''
+    endif
+    " Request original <tab> mapping or literal tab
+    return '\t'
+endfunction
+
+function! ollama#InsertNextLine()
+    call ollama#logger#Debug("> InsertNextLine")
+    if empty(s:suggestion)
+        call ollama#logger#Debug("< InsertNextLine: suggestion empty")
+        return
+    endif
+
+    call ollama#logger#Debug("current suggestion=" .. json_encode(s:suggestion))
+
+    " matchstr({expr}, {pat} [, {start} [, {count}]]): returns matched string
+    " substitute({string}, {pat}, {sub}, {flags}): return new string or '' on error
+    let l:text = matchstr(s:suggestion, "\n*\\%([^\n]\\+\\)") " get line until \n
+    let l:firstline = substitute(l:text, "\n*$", '', '') " remove trailing newline
+    let s:suggestion = strpart(s:suggestion, strlen(l:text) + 1) " remove line from suggestion
+    call ollama#logger#Debug("firstline=" .. json_encode(l:firstline))
+    call ollama#logger#Debug("new suggestion=" .. json_encode(s:suggestion))
+
+    " check if remaingin suggestion contains more non-white space charaters
+    if (matchstr(s:suggestion, '\S') == "")
+        let s:suggestion = ''
+        let morelines=0
+    else
+        let morelines=1
+    endif
+
+    let s:ignore_schedule = 1
+    call ollama#InsertStringWithNewlines(l:firstline, morelines)
+
+    " update preview with remain suggestion
+    call ollama#UpdatePreview(s:suggestion)
+    call ollama#logger#Debug("< InsertNextLine")
+endfunction
+
+function! ollama#InsertNextWord()
+    call ollama#logger#Debug("> InsertNextWord")
+    if empty(s:suggestion)
+        call ollama#logger#Debug("< InsertNextWord: suggestion empty")
+        return
+    endif
+
+    call ollama#logger#Debug("current suggestion=" .. json_encode(s:suggestion))
+
+    " matchstr({expr}, {pat} [, {start} [, {count}]]): returns matched string
+    " substitute({string}, {pat}, {sub}, {flags}): return new string or '' on error
+    let l:text = matchstr(s:suggestion, '\%(\S\+\s*\)') " get first word with trailing spaces
+    let l:firstword = substitute(l:text, "\n*$", '', '') " remove trailing newlines
+    let s:suggestion = strpart(s:suggestion, strlen(l:text)) " remove word from suggestion
+    call ollama#logger#Debug("firstword=" .. json_encode(l:firstword))
+    call ollama#logger#Debug("new suggestion=" .. json_encode(s:suggestion))
+
+    let s:ignore_schedule = 1
+    call ollama#InsertStringWithNewlines(l:firstword, 0)
+
+    " update preview with remain suggestion
+    call ollama#UpdatePreview(s:suggestion)
+    call ollama#logger#Debug("< InsertNextWord")
+endfunction
+
+function ollama#IsEnabled() abort
+    " Check if the global setting is enabled
+    if exists('g:ollama_enabled') && g:ollama_enabled == 0
+        return 0
+    endif
+
+    " Check if the buffer-local variable is set and disables completion
+    if exists('b:ollama_enabled') && b:ollama_enabled == 0
+        return 0
+    endif
+
+    " Denylist check: disables even if allowlist allows it
+    if exists('g:ollama_completion_denylist_filetype')
+                \ && len(g:ollama_completion_denylist_filetype) > 0
+                \ && index(g:ollama_completion_denylist_filetype, &filetype) >= 0
+        " file is in deny list -> disabled
+        return 0
+    endif
+
+    " Allowlist check: enable only if in allowlist
+    if exists('g:ollama_completion_allowlist_filetype')
+                \ && len(g:ollama_completion_allowlist_filetype) > 0
+                \ && index(g:ollama_completion_allowlist_filetype, &filetype) < 0
+        " allow list exists, but file is not listed -> disable
+        return 0
+    endif
+
+    " Enabled by default if not disabled by any other logic
+    return 1
+endfunction
+
+" Enables the plugin. If it is already enabled, does nothing.
+function ollama#Enable() abort
+    if !exists('g:ollama_enabled') || g:ollama_enabled != 1
+        let g:ollama_enabled = 1
+        echo "Vim-Ollama is enabled."
+    endif
+endfunction
+
+" Disables the plugin. If it is already disabled, does nothing.
+function ollama#Disable() abort
+    if exists('g:ollama_enabled') && g:ollama_enabled == 1
+        let g:ollama_enabled = 0
+        echo "Vim-Ollama is disabled."
+    endif
+endfunction
+
+" Toggle the enabled state of the plugin.
+function ollama#Toggle() abort
+    if ollama#IsEnabled()
+        call ollama#Disable()
+    else
+        call ollama#Enable()
+    endif
+endfunction
+
+" Provide different commands: enable, disable, help, etc.
+function ollama#Command(command) abort
+    if a:command == 'setup'
+        call ollama#setup#Setup()
+    elseif a:command == 'config'
+        execute ":e ~/.vim/config/ollama.vim"
+    elseif a:command == 'enable'
+        call ollama#Enable()
+    elseif a:command == 'disable'
+        call ollama#Disable()
+    elseif a:command == 'toggle'
+        call ollama#Toggle()
+    elseif a:command == 'pipinstall'
+        call ollama#setup#PipInstall()
+    else
+        echo "Usage: Ollama <setup|config|enable|disable|toggle|pipinstall>"
+    endif
+endfunction
+
+" Define the available commands for completion
+function! ollama#CommandComplete(ArgLead, CmdLine, CursorPos)
+    return ['setup', 'config', 'enable', 'disable', 'toggle', 'pipinstall']
+endfunction
