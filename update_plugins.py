@@ -60,6 +60,7 @@ vim-terraform https://github.com/hashivim/vim-terraform
 vim-wayland-clipboard https://github.com/jasonccox/vim-wayland-clipboard
 fcitx.vim https://github.com/lilydjwg/fcitx.vim
 termux-clipboard https://github.com/Willie169/termux-clipboard
+vim-ollama https://github.com/gergap/vim-ollama
 """.strip()
 
 GITHUB_ZIP = "%s/archive/master.zip"
